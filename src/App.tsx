@@ -1,36 +1,83 @@
+
+import { useEffect, useState } from 'react'
+// import { Routes, Route, Link } from "react-router-dom"
+import { Routes, Route, NavLink } from "react-router-dom"
+
+import Students from "./pages/Students"
+import Departments from "./pages/Department"
+import Timetable from "./pages/Timetable"
+import RfidReaders from "./pages/RfidReader"
 import './index.css'
+import {
+  fetchAnalytics,
+  fetchRecentSwipes,
+  type AnalyticsPayload,
+  type RecentSwipeItem,
+} from './api'
 
-type AttendanceSummary = {
-  totalStudents: number
-  presentToday: number
-  absentToday: number
-  averageAttendance: number
-}
-
-type AttendanceRecord = {
-  id: number
-  name: string
-  rollNo: string
-  department: string
-  year: string
-  timeIn: string
-  status: 'Present' | 'Late' | 'Absent'
-}
-
-const summary: AttendanceSummary = {
-  totalStudents: 0,
-  presentToday: 0,
-  absentToday: 0,
-  averageAttendance: 0,
-}
-
-const recentSwipes: AttendanceRecord[] = []
-
-const weeklyAttendance: { day: string; value: number }[] = []
+const POLL_INTERVAL_MS = 30_000
 
 function App() {
+  const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null)
+  const [recentSwipes, setRecentSwipes] = useState<RecentSwipeItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadData = async () => {
+    try {
+      setError(null)
+      const [analyticsRes, swipesRes] = await Promise.all([
+        fetchAnalytics(),
+        fetchRecentSwipes(),
+      ])
+      setAnalytics(analyticsRes)
+      setRecentSwipes(swipesRes)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
+      setAnalytics(null)
+      setRecentSwipes([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    const id = setInterval(loadData, POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [])
+
+  const summary = analytics?.summary ?? null
+  const weeklyAttendance = analytics?.weekly_trend ?? []
+  const departments = analytics?.departments ?? []
+  const averageAttendance =
+    weeklyAttendance.length > 0
+      ? weeklyAttendance.reduce((acc, p) => acc + p.value, 0) / weeklyAttendance.length
+      : summary?.attendance_today_percent ?? 0
+  const peakDay =
+    weeklyAttendance.length > 0
+      ? weeklyAttendance.reduce((a, b) => (a.value >= b.value ? a : b))
+      : null
+  const lowestDay =
+    weeklyAttendance.length > 0
+      ? weeklyAttendance.reduce((a, b) => (a.value <= b.value ? a : b))
+      : null
+
+  const deptColors: Record<string, string> = {
+    'Computer Science': 'from-emerald-500 to-teal-400',
+    'Electronics & Comm.': 'from-sky-500 to-cyan-400',
+    'Electronics': 'from-sky-500 to-cyan-400',
+    'Mechanical': 'from-amber-500 to-orange-400',
+    'Civil': 'from-rose-500 to-pink-400',
+  }
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      {error && (
+        <div className="bg-rose-50 border-b border-rose-200 px-4 py-2 text-center text-sm text-rose-800">
+          {error} — Make sure the backend is running at{' '}
+          <code className="rounded bg-rose-100 px-1">http://localhost:8000</code>
+        </div>
+      )}
       <div className="flex min-h-screen">
         {/* Sidebar */}
         <aside className="hidden w-72 flex-shrink-0 border-r border-slate-200 bg-white/80 px-6 pb-8 pt-6 shadow-sm backdrop-blur lg:flex lg:flex-col">
@@ -52,46 +99,60 @@ function App() {
             <p className="px-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Overview
             </p>
-            <button className="flex w-full items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 text-indigo-700">
-              <span className="flex items-center gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-indigo-100 text-xs">
-                  📊
-                </span>
-                Dashboard
-              </span>
-              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs">
-                Live
-              </span>
-            </button>
+            <NavLink
+to="/"
+className={({isActive}) =>
+isActive
+? "block px-3 py-2 rounded-lg bg-blue-500 text-white"
+: "block px-3 py-2 rounded-lg hover:bg-slate-100"
+}
+>
+📊 Dashboard
+</NavLink>
 
-            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-50">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs">
-                🎓
-              </span>
-              Students
-            </button>
-            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-50">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs">
-                🏛️
-              </span>
-              Departments
-            </button>
-            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-50">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs">
-                📅
-              </span>
-              Timetable
-            </button>
+<NavLink
+to="/students"
+className={({isActive}) =>
+isActive
+? "block px-3 py-2 rounded-lg bg-blue-500 text-white"
+: "block px-3 py-2 rounded-lg hover:bg-slate-100"
+}
+>
+🎓 Students
+</NavLink>
 
-            <p className="mt-4 px-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              System
-            </p>
-            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-50">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs">
-                📡
-              </span>
-              RFID Readers
-            </button>
+<NavLink
+to="/departments"
+className={({isActive}) =>
+isActive
+? "block px-3 py-2 rounded-lg bg-blue-500 text-white"
+: "block px-3 py-2 rounded-lg hover:bg-slate-100"
+}
+>
+🏛 Departments
+</NavLink>
+
+<NavLink
+to="/timetable"
+className={({isActive}) =>
+isActive
+? "block px-3 py-2 rounded-lg bg-blue-500 text-white"
+: "block px-3 py-2 rounded-lg hover:bg-slate-100"
+}
+>
+📅 Timetable
+</NavLink>
+
+<NavLink
+to="/rfid"
+className={({isActive}) =>
+isActive
+? "block px-3 py-2 rounded-lg bg-blue-500 text-white"
+: "block px-3 py-2 rounded-lg hover:bg-slate-100"
+}
+>
+📡 RFID Readers
+</NavLink>
             <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-50">
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs">
                 ⚙️
@@ -113,6 +174,7 @@ function App() {
 
         {/* Main content */}
         <div className="flex min-h-screen flex-1 flex-col">
+          
           {/* Top bar */}
           <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
@@ -149,6 +211,9 @@ function App() {
 
           {/* Dashboard content */}
           <main className="flex-1 px-4 pb-6 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+            <Routes>
+              <Route path="/" element={
+                <>
             {/* Summary cards */}
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -156,10 +221,10 @@ function App() {
                   Total Enrolled
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-slate-900">
-                  {summary.totalStudents ? summary.totalStudents.toLocaleString() : '—'}
+                  {loading ? '…' : summary?.total_students ? summary.total_students.toLocaleString() : '—'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {summary.totalStudents
+                  {summary?.total_students
                     ? 'Across all departments & years'
                     : 'No enrollment data yet'}
                 </p>
@@ -170,11 +235,11 @@ function App() {
                   Present Today
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-emerald-900">
-                  {summary.presentToday ? summary.presentToday.toLocaleString() : '—'}
+                  {loading ? '…' : summary?.present_today != null ? summary.present_today.toLocaleString() : '—'}
                 </p>
                 <p className="mt-1 text-xs text-emerald-700">
-                  {summary.presentToday && summary.totalStudents
-                    ? `${((summary.presentToday / summary.totalStudents) * 100).toFixed(1)}% of students on campus`
+                  {summary?.present_today != null && summary?.total_students
+                    ? `${summary.attendance_today_percent.toFixed(1)}% of students on campus`
                     : 'Waiting for first RFID scans'}
                 </p>
               </div>
@@ -184,10 +249,10 @@ function App() {
                   Absent / Not Scanned
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-rose-900">
-                  {summary.absentToday ? summary.absentToday.toLocaleString() : '—'}
+                  {loading ? '…' : summary?.absent_today != null ? summary.absent_today.toLocaleString() : '—'}
                 </p>
                 <p className="mt-1 text-xs text-rose-700">
-                  {summary.absentToday
+                  {summary?.absent_today
                     ? 'Includes students without valid RFID events'
                     : 'Calculated once check-ins begin'}
                 </p>
@@ -199,11 +264,11 @@ function App() {
                 </p>
                 <div className="mt-2 flex items-baseline gap-2">
                   <p className="text-2xl font-semibold text-indigo-900">
-                    {summary.averageAttendance ? `${summary.averageAttendance.toFixed(1)}%` : '—'}
+                    {loading ? '…' : averageAttendance ? `${averageAttendance.toFixed(1)}%` : '—'}
                   </p>
-                  {summary.averageAttendance ? (
+                  {averageAttendance ? (
                     <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
-                      +2.4% vs last week
+                      This week
                     </span>
                   ) : (
                     <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-500">
@@ -214,11 +279,12 @@ function App() {
                 <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-sky-400"
-                    style={{ width: `${summary.averageAttendance || 0}%` }}
+                    style={{ width: `${averageAttendance || 0}%` }}
                   />
                 </div>
               </div>
             </section>
+            
 
             {/* Charts & details */}
             <section className="mt-6 grid gap-4 xl:grid-cols-3">
@@ -268,28 +334,32 @@ function App() {
                       </div>
 
                       <div className="mt-4 grid gap-3 text-xs text-slate-600 sm:grid-cols-3">
+                        {peakDay && (
+                          <div className="rounded-xl bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                              Peak day
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">
+                              {peakDay.day} · {peakDay.value}%
+                            </p>
+                          </div>
+                        )}
+                        {lowestDay && (
+                          <div className="rounded-xl bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                              Lowest day
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">
+                              {lowestDay.day} · {lowestDay.value}%
+                            </p>
+                          </div>
+                        )}
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
                           <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                            Peak day
+                            Today
                           </p>
                           <p className="mt-1 text-sm font-semibold text-slate-900">
-                            Wednesday · 95%
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                            Lowest day
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">
-                            Tuesday · 88%
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                            Morning compliance
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">
-                            89% before 9:15 AM
+                            {summary?.attendance_today_percent?.toFixed(1) ?? '—'}%
                           </p>
                         </div>
                       </div>
@@ -324,15 +394,34 @@ function App() {
                   </span>
                 </div>
 
-                <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-4 text-xs text-slate-500">
-                  <p className="text-sm font-semibold text-slate-700">
-                    No department-wise attendance data
-                  </p>
-                  <p className="mt-1">
-                    Once RFID devices are active, this panel will break down attendance percentages for each
-                    department and year.
-                  </p>
-                </div>
+                {departments.length > 0 ? (
+                  <div className="mt-4 space-y-3 text-xs">
+                    {departments.map((dept) => (
+                      <div key={dept.name}>
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-slate-800">{dept.name}</p>
+                          <p className="text-[11px] text-slate-500">{dept.value}%</p>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full bg-gradient-to-r ${deptColors[dept.name] ?? 'from-indigo-500 to-sky-400'}`}
+                            style={{ width: `${dept.value}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-4 text-xs text-slate-500">
+                    <p className="text-sm font-semibold text-slate-700">
+                      No department-wise attendance data
+                    </p>
+                    <p className="mt-1">
+                      Once RFID devices are active, this panel will break down attendance percentages for each
+                      department and year.
+                    </p>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -408,22 +497,17 @@ function App() {
                                 <p className="text-[11px] text-slate-500">{record.year}</p>
                               </td>
                               <td className="hidden whitespace-nowrap px-4 py-3 text-xs text-slate-600 md:table-cell">
-                                {record.rollNo}
+                                {record.student_id}
                               </td>
                               <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-700">
-                                {record.timeIn}
+                                {record.time_in}
                               </td>
                               <td className="whitespace-nowrap px-4 py-3 text-right">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                                    record.status === 'Present'
-                                      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
-                                      : record.status === 'Late'
-                                        ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
-                                        : 'bg-rose-50 text-rose-700 ring-1 ring-rose-100'
-                                  }`}
-                                >
-                                  {record.status}
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                                  Present
+                                </span>
+                                <span className="ml-1 text-[10px] text-slate-400">
+                                  @ {record.location_type}
                                 </span>
                               </td>
                             </tr>
@@ -463,6 +547,13 @@ function App() {
                 )}
               </div>
             </section>
+             </>
+              }/>
+              <Route path="/students" element={<Students />} />
+              <Route path="/departments" element={<Departments />} />
+              <Route path="/timetable" element={<Timetable />} />
+              <Route path="/rfid" element={<RfidReaders />} />
+           </Routes>
           </main>
         </div>
       </div>
