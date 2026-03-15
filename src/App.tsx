@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 // import { Routes, Route, Link } from "react-router-dom"
 import { Routes, Route, NavLink } from "react-router-dom"
 
+import Dashboard from "./pages/Dashboard"
 import Students from "./pages/Students"
 import Departments from "./pages/Department"
 import Timetable from "./pages/Timetable"
@@ -14,6 +15,7 @@ import {
   type AnalyticsPayload,
   type RecentSwipeItem,
 } from './api'
+import Admin from './pages/Admin'
 
 const POLL_INTERVAL_MS = 30_000
 
@@ -201,10 +203,16 @@ isActive
               </button>
               <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 shadow-sm">
                 <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-sky-400" />
-                <div className="hidden text-xs sm:block">
-                  <p className="font-semibold text-slate-900">Admin</p>
-                  <p className="text-[11px] text-slate-500">Attendance Control</p>
-                </div>
+               <NavLink
+to="/admin"
+className={({isActive}) =>
+isActive
+? "block px-3 py-2 rounded-lg bg-blue-500 text-white"
+: "block px-3 py-2 rounded-lg hover:bg-slate-100"
+}
+>
+🛠 Admin Panel
+</NavLink>
               </div>
             </div>
           </header>
@@ -549,10 +557,14 @@ isActive
             </section>
              </>
               }/>
-              <Route path="/students" element={<Students />} />
-              <Route path="/departments" element={<Departments />} />
-              <Route path="/timetable" element={<Timetable />} />
-              <Route path="/rfid" element={<RfidReaders />} />
+            
+                   <Route path="/" element={<Dashboard />} />
+                   <Route path="/admin" element={<Admin />} />
+                    <Route path="/students" element={<Students />} />
+                    <Route path="/departments" element={<Departments />} />
+                   <Route path="/timetable" element={<Timetable />} />
+                  <Route path="/rfid" element={<RfidReaders />} />
+               
            </Routes>
           </main>
         </div>

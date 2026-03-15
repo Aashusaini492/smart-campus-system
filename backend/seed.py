@@ -1,48 +1,129 @@
 """
-Seed script to add sample students and simulate RFID scans for testing.
-Run with: python seed.py
-Requires: backend running (uvicorn main:app), MongoDB running.
+Advanced seed script for Smart Campus RFID system.
+
+Features:
+- Generate 100 students automatically
+- Register students via API
+- Simulate RFID scans
+- Random attendance distribution
+- Good for analytics testing
+
+Run:
+python seed.py
+
+Requirements:
+Backend running (uvicorn main:app)
+MongoDB running
 """
+
 import requests
+import random
+import time
 
 API = "http://localhost:8000"
 
-STUDENTS = [
-{"student_id": "CSE-2021-043", "name": "Aarav Sharma", "department": "Computer Science", "year": "3rd Year", "rfid_uid": "04A1B2C3D4E5"},
-{"student_id": "ECE-2022-118", "name": "Priya Verma", "department": "Electronics", "year": "2nd Year", "rfid_uid": "04B2C3D4E5F6"},
-{"student_id": "ME-2020-057", "name": "Rahul Singh", "department": "Mechanical", "year": "4th Year", "rfid_uid": "04C3D4E5F6A7"},
-{"student_id": "CIV-2023-021", "name": "Simran Kaur", "department": "Civil", "year": "1st Year", "rfid_uid": "04D4E5F6A7B8"},
-{"student_id": "CSE-2022-066", "name": "Aditya Kumar", "department": "Computer Science", "year": "2nd Year", "rfid_uid": "04E5F6A7B8C9"},
-{"student_id": "ECE-2021-052", "name": "Neha Gupta", "department": "Electronics", "year": "3rd Year", "rfid_uid": "04F6A7B8C9D0"},
-{"student_id": "ME-2022-091", "name": "Karan Patel", "department": "Mechanical", "year": "2nd Year", "rfid_uid": "0411A2B3C4D5"},
-{"student_id": "CIV-2021-034", "name": "Ananya Das", "department": "Civil", "year": "3rd Year", "rfid_uid": "0422B3C4D5E6"},
-{"student_id": "CSE-2023-012", "name": "Rohit Mehta", "department": "Computer Science", "year": "1st Year", "rfid_uid": "0433C4D5E6F7"},
-{"student_id": "ECE-2020-078", "name": "Sneha Iyer", "department": "Electronics", "year": "4th Year", "rfid_uid": "0444D5E6F7A8"}
+DEPARTMENTS = [
+    "Computer Science",
+    "Information Technology",
+    "Electronics",
+    "Mechanical",
 ]
 
-def main():
-    for s in STUDENTS:
+YEARS = [
+    "1st Year",
+    "2nd Year",
+    "3rd Year",
+    "4th Year",
+]
+
+FIRST_NAMES = [
+    "Aarav","Rahul","Priya","Neha","Anjali","Karan","Simran",
+    "Rohit","Aman","Vikas","Isha","Aditya","Riya","Arjun"
+]
+
+LAST_NAMES = [
+    "Sharma","Singh","Verma","Gupta","Patel","Kumar","Mehta",
+    "Kaur","Yadav","Joshi"
+]
+
+
+def random_name():
+    return f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}"
+
+
+def generate_students(n=30):
+    students = []
+
+    for i in range(1, n + 1):
+
+        student = {
+            "student_id": f"CAMPUS-{1000+i}",
+            "name": random_name(),
+            "department": random.choice(DEPARTMENTS),
+            "year": random.choice(YEARS),
+            "rfid_uid": f"RFID-{1000+i}",
+        }
+
+        students.append(student)
+
+    return students
+
+
+def register_students(students):
+
+    print("Registering students...")
+
+    for s in students:
+
         r = requests.post(f"{API}/students", json=s)
+
         if r.status_code in (200, 201):
             print(f"Registered: {s['name']}")
+
         elif r.status_code == 409:
             print(f"Already exists: {s['name']}")
-        else:
-            print(f"Error {r.status_code}: {s['name']} - {r.text}")
 
-    # Simulate scans at different locations
-    scans = [
-        ("04A1B2C3D4E5", "gate-01", "gate"),
-        ("04B2C3D4E5F6", "gate-01", "gate"),
-        ("04C3D4E5F6A7", "classroom-A101", "classroom"),
-        ("04D4E5F6A7B8", "library-01", "library"),
-    ]
-    for uid, reader_id, loc in scans:
-        r = requests.post(f"{API}/rfid/scan", json={"uid": uid, "reader_id": reader_id, "location_type": loc})
+        else:
+            print(f"Error {r.status_code}: {r.text}")
+
+
+def simulate_attendance(students):
+
+    print("\nSimulating RFID scans...")
+
+    present_students = random.sample(students, int(len(students) * 0.7))
+
+    for s in present_students:
+
+        payload = {
+            "uid": s["rfid_uid"],
+            "reader_id": random.choice(["gate-01", "MATLAB_READER_1"]),
+            "location_type": random.choice(["gate", "classroom"])
+        }
+
+        r = requests.post(f"{API}/rfid/scan", json=payload)
+
         if r.status_code == 200:
-            print(f"Scan recorded: {uid} @ {loc}")
+            print(f"Attendance marked: {s['name']}")
         else:
             print(f"Scan failed {r.status_code}: {r.text}")
+
+        time.sleep(0.2)
+
+
+def main():
+
+    students = generate_students(15)
+
+    register_students(students)
+
+    simulate_attendance(students)
+
+    print("\nSeed completed.")
+    print("Check analytics at:")
+    print("http://localhost:8000/analytics/summary")
+    print("http://localhost:8000/analytics/recent-swipes")
+
 
 if __name__ == "__main__":
     main()

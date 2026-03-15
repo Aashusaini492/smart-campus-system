@@ -342,6 +342,20 @@ async def analytics_summary(db: DbDep):
         weekly_trend=weekly,
         departments=departments,
     )
+@app.get("/admin/students")
+def get_students():
+    return students
+
+
+@app.get("/admin/attendance")
+def get_attendance():
+    return attendance_logs
+
+
+@app.delete("/admin/reset-attendance")
+def reset_attendance():
+    attendance_logs.clear()
+    return {"message": "Attendance reset successful"}
 
 
 # -----------------------------
