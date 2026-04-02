@@ -1,13 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from bson import ObjectId
 import os
-
 
 # -----------------------------
 # DATABASE CONFIG
@@ -149,7 +148,8 @@ async def health():
 async def register_student(student: StudentCreate, db: DbDep):
 
     existing = await db.students.find_one(
-        {"$or": [{"student_id": student.student_id}, {"rfid_uid": student.rfid_uid}]}
+        {"$or": [{"student_id": student.student_id},
+                 {"rfid_uid": student.rfid_uid}]}
     )
 
     if existing:
@@ -181,6 +181,58 @@ async def get_students(db: DbDep):
         students.append(StudentPublic(**_serialize_student(doc)))
 
     return students
+
+
+@app.get("/admin/students", response_model=list[StudentPublic])
+async def admin_get_students(db: DbDep):
+    students = []
+    cursor = db.students.find()
+    async for doc in cursor:
+        students.append(StudentPublic(**_serialize_student(doc)))
+    return students
+
+
+@app.get("/admin/attendance", response_model=list[RecentSwipeItem])
+async def admin_get_attendance(db: DbDep, limit: int = 100):
+    pipeline = [
+        {"$sort": {"timestamp": -1}},
+        {"$limit": limit},
+        {
+            "$lookup": {
+                "from": "students",
+                "localField": "student_id",
+                "foreignField": "_id",
+                "as": "student",
+            }
+        },
+        {"$unwind": "$student"},
+        {
+            "$project": {
+                "id": {"$toString": "$_id"},
+                "name": "$student.name",
+                "student_id": "$student.student_id",
+                "department": "$student.department",
+                "year": "$student.year",
+                "time_in": {
+                    "$dateToString": {
+                        "format": "%H:%M",
+                        "date": "$timestamp",
+                        "timezone": "UTC",
+                    }
+                },
+                "location_type": "$location_type",
+            }
+        },
+    ]
+
+    docs = await db.attendance_events.aggregate(pipeline).to_list(limit)
+    return [RecentSwipeItem(**d) for d in docs]
+
+
+@app.delete("/admin/reset-attendance")
+async def admin_reset_attendance(db: DbDep):
+    await db.attendance_events.delete_many({})
+    return {"message": "Attendance reset"}
 
 
 # -----------------------------
@@ -342,20 +394,6 @@ async def analytics_summary(db: DbDep):
         weekly_trend=weekly,
         departments=departments,
     )
-@app.get("/admin/students")
-def get_students():
-    return students
-
-
-@app.get("/admin/attendance")
-def get_attendance():
-    return attendance_logs
-
-
-@app.delete("/admin/reset-attendance")
-def reset_attendance():
-    attendance_logs.clear()
-    return {"message": "Attendance reset successful"}
 
 
 # -----------------------------
