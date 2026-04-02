@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 // import { Routes, Route, Link } from "react-router-dom"
 import { Routes, Route, NavLink } from "react-router-dom"
 
-import Dashboard from "./pages/Dashboard"
 import Students from "./pages/Students"
 import Departments from "./pages/Department"
 import Timetable from "./pages/Timetable"
@@ -154,6 +153,17 @@ isActive
 }
 >
 📡 RFID Readers
+</NavLink>
+
+<NavLink
+  to="/admin"
+  className={({isActive}) =>
+    isActive
+      ? "block px-3 py-2 rounded-lg bg-blue-500 text-white"
+      : "block px-3 py-2 rounded-lg hover:bg-slate-100"
+  }
+>
+🛠 Admin Panel
 </NavLink>
             <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-50">
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs">
@@ -558,7 +568,6 @@ isActive
              </>
               }/>
             
-                   <Route path="/" element={<Dashboard />} />
                    <Route path="/admin" element={<Admin />} />
                     <Route path="/students" element={<Students />} />
                     <Route path="/departments" element={<Departments />} />

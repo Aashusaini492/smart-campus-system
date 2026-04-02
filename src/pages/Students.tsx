@@ -1,6 +1,4 @@
 
-import React from "react"
-
 const students = [
 { id:"CSE-001", name:"Aarav Sharma", dept:"CSE", year:"3rd" },
 { id:"CSE-002", name:"Priya Verma", dept:"CSE", year:"3rd" },
