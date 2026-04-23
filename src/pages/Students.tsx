@@ -20,9 +20,9 @@ const students = [
 { id:"CSE-017", name:"Sakshi Patel", dept:"CSE", year:"2nd" },
 { id:"CSE-018", name:"Amit Singh", dept:"CSE", year:"2nd" },
 { id:"CSE-019", name:"Ankit Sharma", dept:"CSE", year:"2nd" },
-{ id:"CSE-020", name:"Megha Verma", dept:"CSE", year:"2nd" },
+{ id:"CSE-020", name:"Kajal Gupta", dept:"CSE", year:"2nd" },
 
-{ id:"CSE-021", name:"Arjun Singh", dept:"CSE", year:"1st" },
+{ id:"CSE-021", name:"Arjun Rampal", dept:"CSE", year:"1st" },
 { id:"CSE-022", name:"Payal Sharma", dept:"CSE", year:"1st" },
 { id:"CSE-023", name:"Ravi Patel", dept:"CSE", year:"1st" },
 { id:"CSE-024", name:"Nisha Gupta", dept:"CSE", year:"1st" },
